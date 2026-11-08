@@ -10,6 +10,8 @@ import {botGroup} from './bot-workers'
 import {cockpitAvailable,docsTree,itemsForPath,readCockpit,repoRelative,saveCockpitCard} from './work-cockpit'
 import {getView} from './presentation'
 import {readStore} from './store'
+import {defaultPluginWorkspace} from './workspaces'
+import {projectTeamBoard} from './work-notion'
 
 const file=path.join(APP_HOME,'work-dispatches.json')
 const locks=new Set<string>()
@@ -50,9 +52,20 @@ function resolveTeam(explicit?:string){
   if(groups.length===1)return {team:groups[0],...boundRoot(groups[0])}
   return null
 }
+function project(team:string,root:string){
+  try{projectTeamBoard(defaultPluginWorkspace('mininotion'),team,root)}catch{/* MiniNotion notes stay usable when the collection cannot be projected. */}
+}
+export function projectOpenWorkboards(){
+  const store=readStore()
+  for(const team of store.groups){
+    const root=store.teamRoots?.[team]
+    if(root&&cockpitAvailable(root))project(team,root)
+  }
+}
 function board(team:string,root:string,cloud:boolean){
   if(cloud&&!cockpitAvailable(root))return {team,root,cockpit:team+'/'+'docs/ai-finance/cockpit',available:false,reason:'The bound repository is on a cloud host and is not readable as a Core-host folder.',columns:[...WORK_COLUMNS],items:[] as WorkItem[]}
   const available=cockpitAvailable(root)
+  if(available)project(team,root)
   return {team,root,cockpit:'docs/ai-finance/cockpit',available,reason:available?undefined:'This team has no docs/ai-finance/cockpit folder',columns:[...WORK_COLUMNS],items:available?readCockpit(root):[]}
 }
 function requireBoard(explicit?:string){
@@ -113,6 +126,7 @@ export async function workRequest(command:string,args:Record<string,any>){
       ...(args.review!==undefined?{review:String(args.review)}:{}),
       ...(args.body!==undefined?{body:String(args.body)}:{})
     },args.expectedHash)
+    project(resolved.team,resolved.root)
     notify()
     return {team:resolved.team,item:detail(saved.item),items:saved.items.map(summary)}
   }

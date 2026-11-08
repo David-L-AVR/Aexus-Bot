@@ -1,5 +1,5 @@
 import {monitorRequest} from './script-monitors'
-import {workRequest} from './work-items'
+import {projectOpenWorkboards,workRequest} from './work-items'
 import {botRequest,botDirectTarget,botDirectRequest,botFileEndpoint,botGroup} from './bot-workers'
 import {hostRights} from './host-access'
 import {pluginAccess,pluginScope,pluginAccessEntry,grantCreatedPluginResources} from './plugins/access'
@@ -585,6 +585,7 @@ async function dispatchRequest(req: Request,privateSend?:PrivateSendAttempt): Pr
       return callPlugin(s(a.id),pluginWorkspace(a),s(a.method),a.params??{},a.raw===true)
     case 'plugin.open': {
       await beforeViewChange()
+      if(s(a.id)==='mininotion'){try{projectOpenWorkboards()}catch{/* Opening MiniNotion still shows existing notes. */}}
       const window=await openPluginWindow(s(a.id),pluginWorkspace(a))
       setView({kind:'home',pluginId:s(a.id)})
       return window
