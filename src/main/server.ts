@@ -1,4 +1,5 @@
 import {monitorRequest} from './script-monitors'
+import {projectOpenWorkboards,recordStartedWork,workRequest} from './work-items'
 import {botRequest,botDirectTarget,botDirectRequest,botFileEndpoint,botGroup} from './bot-workers'
 import {hostRights} from './host-access'
 import {pluginAccess,pluginScope,pluginAccessEntry,grantCreatedPluginResources} from './plugins/access'
@@ -221,6 +222,7 @@ export async function handleRequest(req:Request,context?:RequestContext&{signal?
   }else authorize(req.cmd,a,target,caller)
   assertInitializationRequest(req.cmd,target)
   if(req.cmd.startsWith('monitor.'))return monitorRequest(req.cmd,a)
+  if(req.cmd.startsWith('work.'))return workRequest(req.cmd,a)
   if(req.cmd.startsWith('bot.'))return botRequest(req.cmd,a)
   if(botDirectTarget(req.cmd,a)){
     if(req.cmd==='direct.send'&&a.replyTo&&a.replyConversation!==undefined){
@@ -583,6 +585,7 @@ async function dispatchRequest(req: Request,privateSend?:PrivateSendAttempt): Pr
       return callPlugin(s(a.id),pluginWorkspace(a),s(a.method),a.params??{},a.raw===true)
     case 'plugin.open': {
       await beforeViewChange()
+      if(s(a.id)==='mininotion'){try{projectOpenWorkboards()}catch{/* Opening MiniNotion still shows existing notes. */}}
       const window=await openPluginWindow(s(a.id),pluginWorkspace(a))
       setView({kind:'home',pluginId:s(a.id)})
       return window
@@ -645,7 +648,7 @@ async function dispatchRequest(req: Request,privateSend?:PrivateSendAttempt): Pr
       const suffix=a.base?' --base '+s(a.base):a.commit?' --commit '+s(a.commit):a.instructions?' '+s(a.instructions):''
       return {sent:await sendMessage(s(a.id),'/review'+suffix)}
     }
-    case 'session.enqueue': return enqueueMessage(s(a.id),s(a.text??''),a.images,a.delegation,a.viewId,undefined,a.replyTo,a.replyQuote,a.crossReply,a.files,privateSend,a.sourceView)
+    case 'session.enqueue': {const queued=enqueueMessage(s(a.id),s(a.text??''),a.images,a.delegation,a.viewId,undefined,a.replyTo,a.replyQuote,a.crossReply,a.files,privateSend,a.sourceView);recordStartedWork({employeeId:sessionInfo(s(a.id))?.cardId??a.employee,text:a.text,clientMessageId:a.clientMessageId});return queued}
     case 'session.queue': return queuedMessages(s(a.id))
     case 'session.dequeue': return removeQueuedMessage(s(a.id),s(a.messageId))
     case 'session.export': {
@@ -654,7 +657,7 @@ async function dispatchRequest(req: Request,privateSend?:PrivateSendAttempt): Pr
       if(a.path){const employee=executionEmployee(readStore(),card);const args={path:s(a.path),content,create:true};return employee.remote?remoteFiles(card.id,employee.remote,'write',args):workspaceFiles(employeeWorkspace(readStore(),card.group,card.cwd,card.id),'write',args)}
       return {format,content}
     }
-    case 'session.send': {const sent=await sendMessage(s(a.id),s(a.text??''),undefined,a.images,a.delegation,a.viewId,undefined,a.replyTo,a.replyQuote,a.crossReply,a.files,privateSend,a.sourceView);return {sent,messageId:sessionInfo(s(a.id))?.currentTask?.messageId}}
+    case 'session.send': {const sent=await sendMessage(s(a.id),s(a.text??''),undefined,a.images,a.delegation,a.viewId,undefined,a.replyTo,a.replyQuote,a.crossReply,a.files,privateSend,a.sourceView);if(sent)recordStartedWork({employeeId:sessionInfo(s(a.id))?.cardId??a.employee,text:a.text,clientMessageId:a.clientMessageId});return {sent,messageId:sessionInfo(s(a.id))?.currentTask?.messageId}}
 
     case 'session.transcript': {
       const allItems=transcriptItems(s(a.id)),items=a.limit?allItems.slice(-Math.max(1,Math.min(1000,Number(a.limit)))):allItems

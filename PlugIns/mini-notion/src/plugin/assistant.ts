@@ -2,6 +2,10 @@ export type RequestHost = (request: { cmd: string; args?: Record<string, unknown
 
 export async function requestAssistant(host: RequestHost | undefined, method: string, params: Record<string, any>) {
   if (!host) throw new Error('选区 AI 需要在 Agents Company 中使用已有员工');
+  if (method === 'work.candidates' || method === 'work.start') {
+    if (!host) throw new Error('开始执行需要在 Aexus 中打开 MiniNotion');
+    return host({ cmd: method, args: params });
+  }
   if (method === 'assistant.list') {
     const [employees, store] = await Promise.all([host({ cmd: 'session.status' }), host({ cmd: 'session.list' })]);
     return employees.filter((e: any) => e.kind !== 'chatter' && !e.deleting).map((e: any) => ({

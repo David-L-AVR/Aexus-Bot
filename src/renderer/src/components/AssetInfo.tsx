@@ -11,8 +11,9 @@ import {Icon} from './Icon'
 
 export function AssetInfoDialog({node,onClose}:{node:AssetNode;onClose:()=>void}){
  useI18n();useDialogFocus('.asset-info-dialog',true)
- const motion=useSurfaceMotion<HTMLDivElement>('dialog'),[info,setInfo]=useState<Info>(),[error,setError]=useState(''),[copied,setCopied]=useState(false)
+ const motion=useSurfaceMotion<HTMLDivElement>('dialog'),[info,setInfo]=useState<Info>(),[error,setError]=useState(''),[copied,setCopied]=useState(false),[workItems,setWorkItems]=useState<{id:string;title:string;column:string}[]>([])
  useEffect(()=>{let live=true;void api.call<Info>('assets.info',{id:node.id}).then(value=>{if(live)setInfo(value)}).catch(cause=>live&&setError(cause.message));return()=>{live=false}},[node.id])
+ useEffect(()=>{if(!node.owner?.team||!node.location?.path||node.location.path==='.'){setWorkItems([]);return}let live=true;void api.call<{items:{id:string;title:string;column:string}[]}>('work.forPath',{team:node.owner.team,path:node.location.path}).then(value=>{if(live)setWorkItems(value.items??[])}).catch(()=>{if(live)setWorkItems([])});return()=>{live=false}},[node.id,node.owner?.team,node.location?.path])
  const date=(value:number)=>new Date(value).toLocaleString(interfaceLocale())
  const details=info?[['Kind',t(node.directory?'Folder':'File')],['Location',info.logicalLocation.map(label=>t(label)).join(' › ')],['Employee',node.owner?.employeeName],['Team',node.owner?.team],['Stored on',info.host?.name],['Size',info.bytes===undefined?undefined:assetSize(info.bytes)],['Contents',info.fileCount===undefined?undefined:t('{0} files',[info.fileCount])],['Modified',info.modifiedAt?date(info.modifiedAt):undefined],['Created',info.createdAt?date(info.createdAt):undefined],['Access',t(info.readOnly?'Read-only originals':'Read and write')],['Verification',t(info.verified==='virtual'?'Logical collection':info.verified==='metadata'?'Saved metadata only':info.verified==='remote'?'Checked on remote host':'Checked on Core host')]]:[]
  return createPortal(<div ref={motion} className="asset-info-overlay" onKeyDown={event=>{if(event.key==='Escape'&&!event.nativeEvent.isComposing){event.preventDefault();event.stopPropagation();onClose()}}}><div className="panel-backdrop" onClick={onClose}/><section className="asset-info-dialog" role="dialog" aria-modal="true" aria-label={t('Get Info')}>
@@ -22,6 +23,7 @@ export function AssetInfoDialog({node,onClose}:{node:AssetNode;onClose:()=>void}
   {info&&<><dl>{details.filter(([,value])=>value!==undefined).map(([label,value])=><div className="asset-info-field" key={label}><dt>{t(label!)}</dt><dd>{value}</dd></div>)}</dl>
    {info.physicalPath&&<section className="asset-info-location"><h3>{t('Physical location')}</h3><p>{info.address}{info.host?.kind==='remote'&&info.port?' · SSH '+info.port:''}</p><code data-physical-path>{info.physicalPath}</code><button onClick={()=>void navigator.clipboard.writeText(info.physicalPath!).then(()=>setCopied(true)).catch(cause=>setError(cause.message))}><Icon name={copied?'check':'copy'}/>{t(copied?'Copied':'Copy path')}</button></section>}
    {info.exists===false&&<p role="status">{t('File not found')}</p>}{info.note&&<p className="asset-info-note">{t(info.note)}</p>}
+   {!!workItems.length&&<section className="asset-info-location"><h3>{t('Work items')}</h3>{workItems.map(item=><p key={item.id}>{item.id} · {item.title} · {item.column}</p>)}</section>}
   </>}
  </section></div>,document.body)
 }

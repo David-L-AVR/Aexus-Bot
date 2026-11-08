@@ -34,7 +34,9 @@ export function assetCatalog(){
   const owner:AssetOwner={view:'Company',label:team,team},id='team:'+encodeURIComponent(team)
   const workspace=add({id,name:'Workspace',label:team,root,scope:{team},kind:'team',owner,host:assetHost(config),remote:config.mode==='cloud'})
   const employees=store.sessions.filter(card=>card.group===team&&!card.deleting).map(card=>add({id:'employee:'+card.id,name:directoryName(card.title,'employee'),label:card.title,root:card.cwd,scope:{employee:card.id},kind:'employee',owner:{...owner,label:team+' / '+card.title,employee:card.id,employeeName:card.title,avatar:card.avatar,color:card.color},host:assetHost(employeeSettings(store,card)),remote:employeeSettings(store,card).mode==='cloud'}))
-  workspace.children=employees.map(employee=>{const paths=root.includes('\\')?path.win32:path.posix,member=mounts.find(mount=>mount.id===employee.id)!,part=paths.relative(root,member.root);return {...employee,external:part==='..'||part.startsWith('..'+paths.sep)||paths.isAbsolute(part)}});company.push({...folder('company:'+encodeURIComponent(team),directoryName(team,'team'),[workspace]),label:team,kind:'team',owner})
+  workspace.children=employees.map(employee=>{const paths=root.includes('\\')?path.win32:path.posix,member=mounts.find(mount=>mount.id===employee.id)!,part=paths.relative(root,member.root);return {...employee,external:part==='..'||part.startsWith('..'+paths.sep)||paths.isAbsolute(part)}})
+  if(config.mode!=='cloud'&&fs.existsSync(path.join(root,'docs','ai-finance')))workspace.children.unshift({id:assetNodeId(id,'docs/ai-finance'),name:'docs/ai-finance',label:'Project documents',directory:true,locked:false,kind:'folder',storage:workspace.storage,host:workspace.host,owner,location:{asset:id,path:'docs/ai-finance'}})
+  company.push({...folder('company:'+encodeURIComponent(team),directoryName(team,'team'),[workspace]),label:team,kind:'team',owner})
  }
  const conversation=(kind:'group'|'channel',item:{id:string;name:string})=>{
   const ref=kind+':'+item.id,workspace=workspaceForMember(ref,undefined,false)

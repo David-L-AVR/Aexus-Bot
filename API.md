@@ -3246,7 +3246,7 @@ Message 通过 bot.list/sync/create/group-create/access 管理外部 Dot/Grok Wo
 <!-- BEGIN GENERATED CLI COMMAND INDEX -->
 ## 全部 CLI 命令索引
 
-下面 369 项来自共享协议 `src/shared/api-registry.ts`。命令名中的句点在终端中写成空格；每项都可附加 `--json`。参数、返回值和限制见上文对应章节。
+下面 381 项来自共享协议 `src/shared/api-registry.ts`。命令名中的句点在终端中写成空格；每项都可附加 `--json`。参数、返回值和限制见上文对应章节。
 
 | 命令 | 参数 | 作用 | 对应界面 | 授权策略 |
 | --- | --- | --- | --- | --- |
@@ -3397,6 +3397,18 @@ Message 通过 bot.list/sync/create/group-create/access 管理外部 Dot/Grok Wo
 | <code>agents channel post-trigger-remove</code> | <code>CHANNEL_ID --employee ID --expected-revision N</code> | Retired: channel count-rule writes are disabled and old active rules are paused; retained rule/history reads remain available. | Remove post-count rule | chat |
 | <code>agents channel post-trigger-history</code> | <code>CHANNEL_ID [--employee ID --offset N --limit N]</code> | Read counted batches and actual queued/running/completed/failed states, exact batch IDs and message references. Never reports a queued task as a completed summary. | Channel batch history | chat |
 | <code>agents channel post-trigger-batch</code> | <code>CHANNEL_ID --batch-id ID [--offset N --limit N]</code> | Read the exact counted batch with paged complete posts and explicit unavailable entries; no approximate latest-N window, model call or user-read acknowledgment | Batch source posts | chat |
+| <code>agents work board</code> | <code>[--team NAME]</code> | Read the current team bound repository cockpit board. Columns map legacy statuses onto 待分派 / 就绪 / 执行中 / 待审查 / 待验收 / 阻塞 / 完成 without rewriting cards. Facts stay in docs/ai-finance/cockpit markdown. | MiniNotion work board | chat |
+| <code>agents work get</code> | <code>ID [--team NAME]</code> | Read one cockpit work item, including outputs, progress, subItemOf, blockedBy and its linked Message conversation. | Work item detail | chat |
+| <code>agents work save</code> | <code>[--team NAME] [--id ID] [--title TEXT] [--status COLUMN] [--assignee TEXT] [--progress N] [--sub-item-of ID] [--blocked-by JSON] [--outputs JSON] [--documents JSON] [--changed-files JSON] [--unverified JSON] [--review TEXT] [--body TEXT] [--expected-hash HASH]</code> | Create or edit a cockpit markdown card in the team bound repository. Moving a card writes the pipeline status. Existing MiniNotion databases are not rewritten. | Edit work item | chat |
+| <code>agents work link</code> | <code>--id ID --conversation REF [--team NAME] [--expected-hash HASH]</code> | Link a Message conversation to a cockpit work item. The link is stored on the markdown card. | Link conversation to work item | chat |
+| <code>agents work docs</code> | <code>[--team NAME]</code> | List docs/ai-finance documents in the current team bound repository and the work items that reference them. | Project documents | chat |
+| <code>agents work forPath</code> | <code>--path RELATIVE [--team NAME]</code> | Read which cockpit work items reference a docs/ai-finance path. | Document work items | chat |
+| <code>agents work candidates</code> | <code>--page-id PAGE</code> | List teammates and already available external workers who can receive a cockpit work item. Does not assign or send. | Choose a teammate | chat |
+| <code>agents work start</code> | <code>--page-id PAGE --to ID [--kind employee&#124;worker]</code> | User or Secretary: assign a cockpit card, move 待分派 or 就绪 to 执行中, link that conversation, and send the assignment now. This click is the confirmation. Employees still use work.dispatch and wait for Ask. | Start work item | chat |
+| <code>agents work dispatch</code> | <code>--id ID --to EMPLOYEE_OR_WORKER [--kind employee&#124;worker] [--team NAME] [--conversation REF]</code> | Ask the user to confirm before one employee assigns a work item to another employee or an external worker. Nothing is sent until work.confirm. External text is limited to the card path, changed files, unverified items and the review ask. | Confirm work dispatch | chat |
+| <code>agents work dispatches</code> | <code>[--team NAME] [--conversation REF]</code> | List work dispatches waiting for the same confirmation card as Ask. Pending items have not been sent. | Pending work dispatches | chat |
+| <code>agents work confirm</code> | <code>ID</code> | User or Secretary: confirm a pending work dispatch and send it through the existing employee or external-worker path. External workers receive the whitelist text only. | Allow work dispatch | chat |
+| <code>agents work deny</code> | <code>ID</code> | User or Secretary: cancel a pending work dispatch. Nothing is sent. | Deny work dispatch | chat |
 | <code>agents card profile</code> | <code>ID [--offset N] [--limit N]</code> | Read employee identity, authorized memberships, named workspaces and paged Plan tasks without opening an engine or changing read receipts | Employee profile | employee.read |
 | <code>agents view list</code> | <code>—</code> | List application views and their shared data contracts | Shared views / group conversations | operator |
 | <code>agents view select</code> | <code>company&#124;messages&#124;plan [--team-view ID]</code> | Select a presentation mode; Messages resumes the last conversation for this client | Shared views / group conversations | operator |
