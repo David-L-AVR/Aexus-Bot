@@ -203,6 +203,16 @@ export function externalDispatchText(payload:WorkDispatchPayload){
   lines.push(`review: ${payload.review.trim()||'(none)'}`)
   return lines.join('\n')
 }
+/** User-started execution leaves 待分派 and 就绪. Later columns stay where they are. */
+export function executionUpdate(item:Pick<WorkItem,'id'|'title'|'path'|'status'|'column'|'review'|'documents'|'outputs'|'unverified'|'changedFiles'>,person:{kind:'employee'|'worker';id:string;title:string}){
+  const column=workColumn(item.status||item.column)
+  const move=column==='待分派'||column==='就绪'
+  const status=move?'执行中':(item.status||column)
+  const nextColumn=workColumn(status)
+  const conversation=person.kind==='employee'?'employee:'+person.id:'group:'+person.id
+  const card={...item,status,column:nextColumn,path:item.path,review:item.review,documents:item.documents,outputs:item.outputs,unverified:item.unverified,changedFiles:item.changedFiles}
+  return {status,assignee:person.title,conversation,employeeText:assignmentText(card),externalText:externalDispatchText({path:item.path,changedFiles:item.changedFiles,unverified:item.unverified,review:item.review})}
+}
 export function assignmentText(item:Pick<WorkItem,'id'|'title'|'path'|'column'|'review'|'documents'|'outputs'|'unverified'|'changedFiles'>){
   return [
     `工作项 ${item.id} ${item.title}`,
@@ -225,6 +235,8 @@ export const WORK_COMMANDS=[
  {cli:{},name:'work.link',args:'--id ID --conversation REF [--team NAME] [--expected-hash HASH]',summary:'Link a Message conversation to a cockpit work item. The link is stored on the markdown card.',gui:'Link conversation to work item',inputSchema:objectSchema({team:nonemptySchema,id:itemId,conversation,expectedHash:{type:'string',minLength:64,maxLength:64}},['id','conversation','expectedHash'])},
  {cli:{},name:'work.docs',args:'[--team NAME]',summary:'List docs/ai-finance documents in the current team bound repository and the work items that reference them.',gui:'Project documents',inputSchema:objectSchema({team:nonemptySchema})},
  {cli:{},name:'work.forPath',args:'--path RELATIVE [--team NAME]',summary:'Read which cockpit work items reference a docs/ai-finance path.',gui:'Document work items',inputSchema:objectSchema({team:nonemptySchema,path:nonemptySchema},['path'])},
+ {cli:{},name:'work.candidates',args:'--page-id PAGE',summary:'List teammates and already available external workers who can receive a cockpit work item. Does not assign or send.',gui:'Choose a teammate',inputSchema:objectSchema({pageId:nonemptySchema},['pageId'])},
+ {cli:{},name:'work.start',args:'--page-id PAGE --to ID [--kind employee|worker]',summary:'User or Secretary: assign a cockpit card, move 待分派 or 就绪 to 执行中, link that conversation, and send the assignment now. This click is the confirmation. Employees still use work.dispatch and wait for Ask.',gui:'Start work item',inputSchema:objectSchema({pageId:nonemptySchema,to:nonemptySchema,kind:{enum:['employee','worker']}},['pageId','to'])},
  {cli:{},name:'work.dispatch',args:'--id ID --to EMPLOYEE_OR_WORKER [--kind employee|worker] [--team NAME] [--conversation REF]',summary:'Ask the user to confirm before one employee assigns a work item to another employee or an external worker. Nothing is sent until work.confirm. External text is limited to the card path, changed files, unverified items and the review ask.',gui:'Confirm work dispatch',inputSchema:objectSchema({team:nonemptySchema,id:itemId,to:nonemptySchema,kind:{enum:['employee','worker']},conversation},['id','to'])},
  {cli:{},name:'work.dispatches',args:'[--team NAME] [--conversation REF]',summary:'List work dispatches waiting for the same confirmation card as Ask. Pending items have not been sent.',gui:'Pending work dispatches',inputSchema:objectSchema({team:nonemptySchema,conversation})},
  {cli:{positionals:['id']},name:'work.confirm',args:'ID',summary:'User or Secretary: confirm a pending work dispatch and send it through the existing employee or external-worker path. External workers receive the whitelist text only.',gui:'Allow work dispatch',inputSchema:objectSchema({id:nonemptySchema},['id'])},

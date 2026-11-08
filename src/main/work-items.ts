@@ -3,15 +3,15 @@ import path from 'node:path'
 import {APP_HOME} from '../shared/core-paths'
 import {rolePolicy} from '../shared/roles'
 import {teamSettings} from '../shared/types'
-import {assignmentText,externalDispatchText,WORK_COLUMNS,type WorkColumn,type WorkDispatch,type WorkItem} from '../shared/work-items'
+import {assignmentText,executionUpdate,externalDispatchText,WORK_COLUMNS,type WorkColumn,type WorkDispatch,type WorkItem} from '../shared/work-items'
 import {atomicJson,readJson} from './atomic-file'
 import {authorize,callerEmployee,isAppAdministrator,requestContext,withCaller} from './authorization'
-import {botGroup} from './bot-workers'
+import {botGroup,listBots} from './bot-workers'
 import {cockpitAvailable,docsTree,itemsForPath,readCockpit,repoRelative,saveCockpitCard} from './work-cockpit'
 import {getView} from './presentation'
 import {readStore} from './store'
 import {defaultPluginWorkspace} from './workspaces'
-import {projectTeamBoard} from './work-notion'
+import {lookupWorkPage,projectTeamBoard} from './work-notion'
 
 const file=path.join(APP_HOME,'work-dispatches.json')
 const locks=new Set<string>()
@@ -130,6 +130,8 @@ export async function workRequest(command:string,args:Record<string,any>){
     notify()
     return {team:resolved.team,item:detail(saved.item),items:saved.items.map(summary)}
   }
+  if(command==='work.candidates')return listCandidates(String(args.pageId))
+  if(command==='work.start')return startWork(args)
   if(command==='work.dispatch')return requestDispatch(args)
   if(command==='work.dispatches')return {dispatches:visibleDispatches(args.team,args.conversation)}
   if(command==='work.confirm')return confirmDispatch(String(args.id))
@@ -152,6 +154,41 @@ function visibleDispatches(team?:string,conversation?:string){
     rows=rows.filter(row=>row.team===card.group||row.fromEmployeeId===card.id||row.to.id===card.id||row.conversation==='employee:'+card.id)
   }
   return rows
+}
+function openedCard(pageId:string){
+  const found=lookupWorkPage(defaultPluginWorkspace('mininotion'),pageId)
+  if(!found)throw Error('Open a cockpit work item')
+  const root=readStore().teamRoots?.[found.team]
+  if(!root||!cockpitAvailable(root))throw Error('This team has no docs/ai-finance/cockpit folder')
+  return {team:found.team,root,item:findItem(readCockpit(root),found.itemId)}
+}
+function listCandidates(pageId:string){
+  const {team}=openedCard(pageId)
+  const employees=readStore().sessions.filter(card=>!card.deleting&&card.group===team).map(card=>({id:card.id,title:card.title,kind:'employee' as const}))
+  const workers=listBots().filter(group=>group.bot?.kind==='private').map(group=>({id:group.id,title:group.name,kind:'worker' as const}))
+  return {team,people:[...employees,...workers]}
+}
+async function startWork(args:Record<string,any>){
+  if(!isAppAdministrator())throw Error('An employee must use work.dispatch and wait for confirmation')
+  if('text' in args||'prompt' in args)throw Error('Assignment text is taken from the work item')
+  const opened=openedCard(String(args.pageId))
+  const to=String(args.to)
+  const employee=readStore().sessions.find(card=>card.id===to&&!card.deleting)
+  const worker=!employee&&botGroup(to)?.bot?.kind==='private'?botGroup(to):undefined
+  const kind=args.kind??(employee?'employee':worker?'worker':undefined)
+  if(kind==='employee'&&(!employee||employee.group!==opened.team))throw Error('Choose a teammate on this team')
+  if(kind==='worker'&&!worker)throw Error('Choose an available external worker')
+  if(kind!=='employee'&&kind!=='worker')throw Error('Choose a teammate or an available external worker')
+  const person={kind,id:to,title:kind==='employee'?employee!.title:worker!.name}
+  const update=executionUpdate(opened.item,person)
+  const saved=saveCockpitCard(opened.root,{id:opened.item.id,assignee:update.assignee,conversation:update.conversation,...((WORK_COLUMNS as readonly string[]).includes(update.status)&&update.status!==opened.item.status?{status:update.status as WorkColumn}:{})},opened.item.hash)
+  project(opened.team,opened.root)
+  const {handleRequest}=await import('./server')
+  const text=kind==='worker'?update.externalText:update.employeeText
+  const result=await handleRequest({cmd:kind==='worker'?'direct.send':'session.send',args:{employee:to,text,clientMessageId:'work-start-'+opened.item.id+'-'+to+'-'+saved.item.hash.slice(0,12),...(kind==='employee'?{sourceView:'messages'}:{})}})
+  try{await handleRequest({cmd:'view.open',args:kind==='worker'?{kind:'messages',chatId:to}:{kind:'messages',employee:to}})}catch{/* The assignment was sent. */}
+  notify()
+  return {pending:false,sent:true,conversation:update.conversation,item:detail(saved.item),result}
 }
 function requestDispatch(args:Record<string,any>){
   const caller=requestContext().principal

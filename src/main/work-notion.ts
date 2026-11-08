@@ -159,3 +159,9 @@ export function projectTeamBoard(collection:string,team:string,repo:string){
   writeSync(collection,sync)
   return {team,folder,databaseId,collection,items:items.length,pulled}
 }
+export function lookupWorkPage(collection:string,pageId:string){
+  const sync=readSync(collection)
+  for(const [team,entry] of Object.entries(sync.teams||{})){
+    for(const [itemId,card] of Object.entries(entry.cards||{}))if(card.pageId===pageId)return {team,itemId}
+  }
+}

@@ -16,6 +16,7 @@ import { ancestors, isTemplatePage } from '../model';
 import { databaseTemplates } from '../database/templatesModel';
 import { syncedReferences } from '../content/references';
 import { pageAppearanceStyle, palette } from '../appearance';
+import { WorkAssign } from './WorkAssign';
 
 export function PageView({
   page,
@@ -219,7 +220,8 @@ export function PageView({
         </button>}
         {parent?.database && (
           <div className="page-properties">
-            {parent.database.columns.map((column) => (
+            {window.native?.hostAssistant && page.id.startsWith('aexus-') && parent.id.startsWith('aexus-') && <WorkAssign pageId={page.id} />}
+            {parent.database.columns.filter(column => !(window.native?.hostAssistant && page.id.startsWith('aexus-') && column.id === 'assignee')).map((column) => (
               <div className="page-property" key={column.id}>
                 <span className="page-property-label">
                   <PropertyIcon type={column.type} />

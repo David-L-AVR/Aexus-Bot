@@ -7,4 +7,6 @@ export const assistantCommands: CommandDefinition[] = [
     options: { text: { type: 'string', description: '完整消息正文', required: true }, clientMessageId: { type: 'string', description: '同一发送的稳定重试 ID', required: true } } },
   { method: 'assistant.read', description: '读取此选区请求的回复与执行状态，不确认用户已读',
     arguments: [{ name: 'employeeId', description: '宿主员工 ID' }, { name: 'messageId', description: 'assistant.send 返回的 messageId' }] },
+  { method: 'work.candidates', description: '列出可以接收此工作项的团队员工和已接入的外部 Worker' },
+  { method: 'work.start', description: '用户在卡片上选择执行人并立即开始；不再弹出第二次确认', mutates: true },
 ];

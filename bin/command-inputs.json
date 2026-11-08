@@ -3846,6 +3846,42 @@
       ]
     ]
   },
+  "work.candidates": {
+    "fields": [
+      [
+        "pageId",
+        "page-id",
+        "text",
+        false,
+        false
+      ]
+    ]
+  },
+  "work.start": {
+    "fields": [
+      [
+        "pageId",
+        "page-id",
+        "text",
+        false,
+        false
+      ],
+      [
+        "to",
+        "to",
+        "text",
+        false,
+        false
+      ],
+      [
+        "kind",
+        "kind",
+        "text",
+        false,
+        false
+      ]
+    ]
+  },
   "work.dispatch": {
     "fields": [
       [

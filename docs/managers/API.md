@@ -3266,7 +3266,7 @@ Message 通过 bot.list/sync/create/group-create/access 管理外部 Dot/Grok Wo
 <!-- BEGIN GENERATED CLI COMMAND INDEX -->
 ## 全部 CLI 命令索引
 
-下面 379 项来自共享协议 `src/shared/api-registry.ts`。命令名中的句点在终端中写成空格；每项都可附加 `--json`。参数、返回值和限制见上文对应章节。
+下面 381 项来自共享协议 `src/shared/api-registry.ts`。命令名中的句点在终端中写成空格；每项都可附加 `--json`。参数、返回值和限制见上文对应章节。
 
 | 命令 | 参数 | 作用 | 对应界面 | 授权策略 |
 | --- | --- | --- | --- | --- |
@@ -3423,6 +3423,8 @@ Message 通过 bot.list/sync/create/group-create/access 管理外部 Dot/Grok Wo
 | <code>agents work link</code> | <code>--id ID --conversation REF [--team NAME] [--expected-hash HASH]</code> | Link a Message conversation to a cockpit work item. The link is stored on the markdown card. | Link conversation to work item | chat |
 | <code>agents work docs</code> | <code>[--team NAME]</code> | List docs/ai-finance documents in the current team bound repository and the work items that reference them. | Project documents | chat |
 | <code>agents work forPath</code> | <code>--path RELATIVE [--team NAME]</code> | Read which cockpit work items reference a docs/ai-finance path. | Document work items | chat |
+| <code>agents work candidates</code> | <code>--page-id PAGE</code> | List teammates and already available external workers who can receive a cockpit work item. Does not assign or send. | Choose a teammate | chat |
+| <code>agents work start</code> | <code>--page-id PAGE --to ID [--kind employee&#124;worker]</code> | User or Secretary: assign a cockpit card, move 待分派 or 就绪 to 执行中, link that conversation, and send the assignment now. This click is the confirmation. Employees still use work.dispatch and wait for Ask. | Start work item | chat |
 | <code>agents work dispatch</code> | <code>--id ID --to EMPLOYEE_OR_WORKER [--kind employee&#124;worker] [--team NAME] [--conversation REF]</code> | Ask the user to confirm before one employee assigns a work item to another employee or an external worker. Nothing is sent until work.confirm. External text is limited to the card path, changed files, unverified items and the review ask. | Confirm work dispatch | chat |
 | <code>agents work dispatches</code> | <code>[--team NAME] [--conversation REF]</code> | List work dispatches waiting for the same confirmation card as Ask. Pending items have not been sent. | Pending work dispatches | chat |
 | <code>agents work confirm</code> | <code>ID</code> | User or Secretary: confirm a pending work dispatch and send it through the existing employee or external-worker path. External workers receive the whitelist text only. | Allow work dispatch | chat |
