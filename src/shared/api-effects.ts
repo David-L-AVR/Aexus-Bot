@@ -6,6 +6,7 @@ direct.history direct.send-status
 conversation.policy conversation.audit conversation.notice-list conversation.notice-get conversation.notice-preview conversation.notice-history
 assets.browse assets.info assets.preview assets.tree assets.children assets.locate assets.search
 bot.list monitor.list monitor.read
+work.board work.get work.docs work.forPath work.dispatches
 worker.list worker.read
 status auth.whoami api.list api.describe api.docs avatar.list avatar.get management.roles management.topology management.activity
 system.info system.directories settings.get engine.list engine.providers engine.check engine.capabilities engine.models engine.inspect engine.install-plan engine.install-status engine.login-status

@@ -1,4 +1,5 @@
 import {monitorRequest} from './script-monitors'
+import {workRequest} from './work-items'
 import {botRequest,botDirectTarget,botDirectRequest,botFileEndpoint,botGroup} from './bot-workers'
 import {hostRights} from './host-access'
 import {pluginAccess,pluginScope,pluginAccessEntry,grantCreatedPluginResources} from './plugins/access'
@@ -221,6 +222,7 @@ export async function handleRequest(req:Request,context?:RequestContext&{signal?
   }else authorize(req.cmd,a,target,caller)
   assertInitializationRequest(req.cmd,target)
   if(req.cmd.startsWith('monitor.'))return monitorRequest(req.cmd,a)
+  if(req.cmd.startsWith('work.'))return workRequest(req.cmd,a)
   if(req.cmd.startsWith('bot.'))return botRequest(req.cmd,a)
   if(botDirectTarget(req.cmd,a)){
     if(req.cmd==='direct.send'&&a.replyTo&&a.replyConversation!==undefined){

@@ -7054,6 +7054,351 @@
     "target": "request"
   },
   {
+    "name": "work.board",
+    "args": "[--team NAME]",
+    "summary": "Read the current team bound repository cockpit board. Columns map legacy statuses onto 待分派 / 就绪 / 执行中 / 待审查 / 待验收 / 阻塞 / 完成 without rewriting cards. Facts stay in docs/ai-finance/cockpit markdown.",
+    "gui": "MiniNotion work board",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "readOnly": true,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.get",
+    "args": "ID [--team NAME]",
+    "summary": "Read one cockpit work item, including outputs, progress, subItemOf, blockedBy and its linked Message conversation.",
+    "gui": "Work item detail",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$"
+        },
+        "team": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "readOnly": true,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.save",
+    "args": "[--team NAME] [--id ID] [--title TEXT] [--status COLUMN] [--assignee TEXT] [--progress N] [--sub-item-of ID] [--blocked-by JSON] [--outputs JSON] [--documents JSON] [--changed-files JSON] [--unverified JSON] [--review TEXT] [--body TEXT] [--expected-hash HASH]",
+    "summary": "Create or edit a cockpit markdown card in the team bound repository. Moving a card writes the pipeline status. Existing MiniNotion databases are not rewritten.",
+    "gui": "Edit work item",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "status": {
+          "enum": [
+            "待分派",
+            "就绪",
+            "执行中",
+            "待审查",
+            "待验收",
+            "阻塞",
+            "完成"
+          ]
+        },
+        "assignee": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "progress": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "subItemOf": {
+          "type": "string",
+          "maxLength": 81
+        },
+        "blockedBy": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "maxItems": 40
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "maxItems": 40
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "maxItems": 40
+        },
+        "changedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "maxItems": 40
+        },
+        "unverified": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "maxItems": 40
+        },
+        "review": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "expectedHash": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "readOnly": false,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.link",
+    "args": "--id ID --conversation REF [--team NAME] [--expected-hash HASH]",
+    "summary": "Link a Message conversation to a cockpit work item. The link is stored on the markdown card.",
+    "gui": "Link conversation to work item",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$"
+        },
+        "conversation": {
+          "type": "string",
+          "pattern": "^(employee|group|channel):[A-Za-z0-9_-]+$"
+        },
+        "expectedHash": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "id",
+        "conversation",
+        "expectedHash"
+      ]
+    },
+    "readOnly": false,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.docs",
+    "args": "[--team NAME]",
+    "summary": "List docs/ai-finance documents in the current team bound repository and the work items that reference them.",
+    "gui": "Project documents",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "readOnly": true,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.forPath",
+    "args": "--path RELATIVE [--team NAME]",
+    "summary": "Read which cockpit work items reference a docs/ai-finance path.",
+    "gui": "Document work items",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "readOnly": true,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.dispatch",
+    "args": "--id ID --to EMPLOYEE_OR_WORKER [--kind employee|worker] [--team NAME] [--conversation REF]",
+    "summary": "Ask the user to confirm before one employee assigns a work item to another employee or an external worker. Nothing is sent until work.confirm. External text is limited to the card path, changed files, unverified items and the review ask.",
+    "gui": "Confirm work dispatch",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$"
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "employee",
+            "worker"
+          ]
+        },
+        "conversation": {
+          "type": "string",
+          "pattern": "^(employee|group|channel):[A-Za-z0-9_-]+$"
+        }
+      },
+      "required": [
+        "id",
+        "to"
+      ]
+    },
+    "readOnly": false,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.dispatches",
+    "args": "[--team NAME] [--conversation REF]",
+    "summary": "List work dispatches waiting for the same confirmation card as Ask. Pending items have not been sent.",
+    "gui": "Pending work dispatches",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "type": "string",
+          "minLength": 1
+        },
+        "conversation": {
+          "type": "string",
+          "pattern": "^(employee|group|channel):[A-Za-z0-9_-]+$"
+        }
+      }
+    },
+    "readOnly": true,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.confirm",
+    "args": "ID",
+    "summary": "User or Secretary: confirm a pending work dispatch and send it through the existing employee or external-worker path. External workers receive the whitelist text only.",
+    "gui": "Allow work dispatch",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "readOnly": false,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
+    "name": "work.deny",
+    "args": "ID",
+    "summary": "User or Secretary: cancel a pending work dispatch. Nothing is sent.",
+    "gui": "Deny work dispatch",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "readOnly": false,
+    "permission": "chat",
+    "target": "request"
+  },
+  {
     "name": "card.profile",
     "args": "ID [--offset N] [--limit N]",
     "summary": "Read employee identity, authorized memberships, named workspaces and paged Plan tasks without opening an engine or changing read receipts",
