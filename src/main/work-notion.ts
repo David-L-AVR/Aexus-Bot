@@ -42,7 +42,7 @@ function blockText(blocks:any):string{
 function lines(value:unknown){return String(value??'').split('\n').map(item=>item.trim()).filter(Boolean)}
 function fingerprint(page:NotionPage){
   return workHash(JSON.stringify({
-    title:page.title,status:page.values?.status??'',assignee:page.values?.assignee??'',progress:page.values?.progress??0,
+    title:page.title,status:page.values?.status??'',assignee:page.values?.assignee??'',initiator:page.values?.initiator??'',proposedAssignee:page.values?.proposedAssignee??'',progress:page.values?.progress??0,
     review:page.values?.review??'',documents:page.values?.documents??'',outputs:page.values?.outputs??'',conversation:page.values?.conversation??'',
     blockedBy:page.blockedBy??[],subItemOf:page.subItemOf??null,body:blockText(page.blocks),
   }))
@@ -62,6 +62,8 @@ function ensureDatabase(file:string,team:string,databaseId:string){
   const columns=[
     status,
     {id:'assignee',name:'负责人',type:'text'},
+    {id:'initiator',name:'发起人',type:'text'},
+    {id:'proposedAssignee',name:'建议分派',type:'text'},
     {id:'progress',name:'进度',type:'number'},
     {id:'documents',name:'相关文档',type:'text'},
     {id:'outputs',name:'产出',type:'text'},
@@ -116,7 +118,7 @@ export function projectTeamBoard(collection:string,team:string,repo:string){
     const blocked=Array.isArray(page.blockedBy)?page.blockedBy.map((id:string)=>pageToCard.get(id)).filter((id:string|undefined):id is string=>!!id&&id!==item.id):item.blockedBy
     const parent=typeof page.subItemOf==='string'?pageToCard.get(page.subItemOf)??null:item.subItemOf
     const next=saveCockpitCard(repo,{
-      id:item.id,title:String(page.title||item.title),assignee:String(values.assignee??item.assignee),progress:Number(values.progress??item.progress)||0,
+      id:item.id,title:String(page.title||item.title),assignee:String(values.assignee??item.assignee),initiator:String(values.initiator??item.initiator),proposedAssignee:String(values.proposedAssignee??item.proposedAssignee),progress:Number(values.progress??item.progress)||0,
       review:String(values.review??item.review),documents:values.documents===undefined?item.documents:lines(values.documents),outputs:values.outputs===undefined?item.outputs:lines(values.outputs),
       conversation:values.conversation===undefined?item.conversation:String(values.conversation||''),blockedBy:blocked,subItemOf:parent===undefined?item.subItemOf:parent,
       body:blockText(page.blocks),...(values.status!==saved.projectedStatus&&(WORK_COLUMNS as readonly string[]).includes(String(values.status))?{status:values.status as WorkColumn}:{}),
@@ -141,7 +143,7 @@ export function projectTeamBoard(collection:string,team:string,repo:string){
       favorite:!!existing?.favorite,trashedAt:null,createdAt:existing?.createdAt||Date.now(),updatedAt:existing?.updatedAt||Date.now(),fullWidth:!!existing?.fullWidth,smallText:!!existing?.smallText,
       font:existing?.font||'default',locked:false,color:existing?.color||'white',textColor:existing?.textColor||'default',
       subItemOf:parentCard?pageId(team,parentCard.id):null,blockedBy:blocked,
-      values:{...(existing?.values||{}),status:workColumn(item.status),assignee:item.assignee,progress:item.progress,documents:item.documents.join('\n'),outputs:item.outputs.join('\n'),review:item.review,conversation:item.conversation||''},
+      values:{...(existing?.values||{}),status:workColumn(item.status),assignee:item.assignee,initiator:item.initiator,proposedAssignee:item.proposedAssignee,progress:item.progress,documents:item.documents.join('\n'),outputs:item.outputs.join('\n'),review:item.review,conversation:item.conversation||''},
       blocks:blockText(existing?.blocks)===body&&existing?.blocks?.length?existing.blocks:[{id:id+'-body',type:'paragraph',content:body}],
     }
     writePage(file,page)

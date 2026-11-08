@@ -28,6 +28,8 @@ export type WorkItem={
   status:string
   column:WorkColumn
   assignee:string
+  initiator:string
+  proposedAssignee:string
   progress:number
   subItemOf:string|null
   blockedBy:string[]
@@ -99,13 +101,13 @@ export function cardFromMarkdown(relativePath:string,markdown:string):WorkItem|n
   const heading=/^#\s+(.+)$/m.exec(body)?.[1]?.trim()
   const title=scalar(fields.title)||heading||id
   const status=scalar(fields.status)
-  const known=new Set(['id','title','status','assignee','progress','subItemOf','blockedBy','outputs','documents','changedFiles','unverified','review','conversation'])
+  const known=new Set(['id','title','status','assignee','initiator','proposedAssignee','progress','subItemOf','blockedBy','outputs','documents','changedFiles','unverified','review','conversation'])
   const extra:Record<string,string|string[]>={}
   for(const [key,value] of Object.entries(fields))if(!known.has(key))extra[key]=value
   const progress=Number(scalar(fields.progress)||0)
   const conversation=scalar(fields.conversation)
   return {
-    id,title,status,column:workColumn(status),assignee:scalar(fields.assignee),
+    id,title,status,column:workColumn(status),assignee:scalar(fields.assignee),initiator:scalar(fields.initiator),proposedAssignee:scalar(fields.proposedAssignee),
     progress:Number.isFinite(progress)?Math.max(0,Math.min(100,Math.round(progress))):0,
     subItemOf:scalar(fields.subItemOf)||null,
     blockedBy:listValue(fields.blockedBy),
@@ -120,13 +122,15 @@ function yamlList(key:string,values:string[]){
   if(!values.length)return `${key}: []`
   return `${key}:\n${values.map(value=>'  - '+value).join('\n')}`
 }
-export function serializeWorkCard(item:Pick<WorkItem,'id'|'title'|'status'|'assignee'|'progress'|'subItemOf'|'blockedBy'|'outputs'|'documents'|'changedFiles'|'unverified'|'review'|'conversation'|'body'|'extra'>,previous?:string){
+export function serializeWorkCard(item:Pick<WorkItem,'id'|'title'|'status'|'assignee'|'initiator'|'proposedAssignee'|'progress'|'subItemOf'|'blockedBy'|'outputs'|'documents'|'changedFiles'|'unverified'|'review'|'conversation'|'body'|'extra'>,previous?:string){
   const {fields}=previous?parseFrontMatter(previous):{fields:{}}
   const next:Record<string,string|string[]>={...fields,...item.extra}
   next.id=item.id
   next.title=item.title
   next.status=item.status
   next.assignee=item.assignee
+  next.initiator=item.initiator
+  next.proposedAssignee=item.proposedAssignee
   next.progress=String(item.progress)
   next.subItemOf=item.subItemOf??''
   next.blockedBy=item.blockedBy
@@ -137,7 +141,7 @@ export function serializeWorkCard(item:Pick<WorkItem,'id'|'title'|'status'|'assi
   next.review=item.review
   if(item.conversation)next.conversation=item.conversation
   else delete next.conversation
-  const order=['id','title','status','assignee','progress','subItemOf','blockedBy','outputs','documents','changedFiles','unverified','review','conversation']
+  const order=['id','title','status','assignee','initiator','proposedAssignee','progress','subItemOf','blockedBy','outputs','documents','changedFiles','unverified','review','conversation']
   const keys=[...order.filter(key=>key in next),...Object.keys(next).filter(key=>!order.includes(key))]
   const lines=keys.map(key=>{
     const value=next[key]

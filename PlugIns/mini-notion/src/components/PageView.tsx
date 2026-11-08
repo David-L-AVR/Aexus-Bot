@@ -220,8 +220,8 @@ export function PageView({
         </button>}
         {parent?.database && (
           <div className="page-properties">
-            {window.native?.hostAssistant && page.id.startsWith('aexus-') && parent.id.startsWith('aexus-') && <WorkAssign pageId={page.id} />}
-            {parent.database.columns.filter(column => !(window.native?.hostAssistant && page.id.startsWith('aexus-') && column.id === 'assignee')).map((column) => (
+            {window.native?.hostAssistant && page.id.startsWith('aexus-') && parent.id.startsWith('aexus-') && <WorkAssign page={page} />}
+            {parent.database.columns.filter(column => !(window.native?.hostAssistant && page.id.startsWith('aexus-') && ['assignee','initiator','proposedAssignee'].includes(column.id))).map((column) => (
               <div className="page-property" key={column.id}>
                 <span className="page-property-label">
                   <PropertyIcon type={column.type} />

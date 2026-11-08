@@ -70,6 +70,8 @@ export function saveCockpitCard(root:string,patch:Partial<WorkItem>&{id?:string;
     status:patch.status??current?.status??'待分派',
     column:patch.status??current?.column??'待分派',
     assignee:patch.assignee??current?.assignee??'',
+    initiator:patch.initiator??current?.initiator??'',
+    proposedAssignee:patch.proposedAssignee??current?.proposedAssignee??'',
     progress:patch.progress??current?.progress??0,
     subItemOf:patch.subItemOf===undefined?current?.subItemOf??null:patch.subItemOf||null,
     blockedBy:patch.blockedBy??current?.blockedBy??[],
@@ -83,7 +85,7 @@ export function saveCockpitCard(root:string,patch:Partial<WorkItem>&{id?:string;
     path:relativePath,
     body:patch.body??current?.body??'',
     hash:'',
-    extra:current?.extra??{}
+    extra:{...(current?.extra??{}),...(patch.extra??{})}
   }
   for(const value of [...next.outputs,...next.documents]){
     const relative=repoRelative(root,value).relative

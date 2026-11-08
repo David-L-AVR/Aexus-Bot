@@ -3,9 +3,10 @@ import path from 'node:path'
 import {APP_HOME} from '../shared/core-paths'
 import {rolePolicy} from '../shared/roles'
 import {teamSettings} from '../shared/types'
-import {assignmentText,executionUpdate,externalDispatchText,WORK_COLUMNS,type WorkColumn,type WorkDispatch,type WorkItem} from '../shared/work-items'
+import {assignmentText,executionUpdate,externalDispatchText,workColumn,WORK_COLUMNS,type WorkColumn,type WorkDispatch,type WorkItem} from '../shared/work-items'
 import {atomicJson,readJson} from './atomic-file'
 import {authorize,callerEmployee,isAppAdministrator,requestContext,withCaller} from './authorization'
+import {existsSync} from 'node:fs'
 import {botGroup,listBots} from './bot-workers'
 import {cockpitAvailable,docsTree,itemsForPath,readCockpit,repoRelative,saveCockpitCard} from './work-cockpit'
 import {getView} from './presentation'
@@ -54,6 +55,36 @@ function resolveTeam(explicit?:string){
 }
 function project(team:string,root:string){
   try{projectTeamBoard(defaultPluginWorkspace('mininotion'),team,root)}catch{/* MiniNotion notes stay usable when the collection cannot be projected. */}
+}
+/** A user message that starts an employee, or an employee message that actually starts work, becomes a cockpit card. */
+export function recordStartedWork(input:{employeeId?:string;sessionId?:string;text?:string;clientMessageId?:string;initiator?:string}){
+  try{
+    const key=input.clientMessageId??''
+    if(key.startsWith('work-'))return
+    const text=String(input.text??'').trim()
+    if(!text||text.startsWith('/'))return
+    const store=readStore()
+    const employeeId=input.employeeId
+    const employee=store.sessions.find(card=>card.id===employeeId&&!card.deleting)
+    if(!employee)return
+    const root=store.teamRoots?.[employee.group]
+    if(!root||!existsSync(root))return
+    if(key&&readCockpit(root).some(item=>item.extra.clientMessageId===key))return
+    const caller=requestContext().principal
+    const initiator=input.initiator??(caller.kind==='operator'?'用户':store.sessions.find(card=>card.id===caller.employeeId)?.title??'员工')
+    saveCockpitCard(root,{
+      title:text.split('\n')[0].slice(0,80),
+      body:text.slice(0,8000),
+      review:text.slice(0,500),
+      status:'执行中',
+      assignee:employee.title,
+      proposedAssignee:'',
+      initiator,
+      conversation:'employee:'+employee.id,
+      extra:key?{clientMessageId:key}:{},
+    })
+    project(employee.group,root)
+  }catch{/* Recording a card never blocks the message. */}
 }
 export function projectOpenWorkboards(){
   const store=readStore()
@@ -139,7 +170,7 @@ export async function workRequest(command:string,args:Record<string,any>){
   throw Error('Unknown work item API')
 }
 function summary(item:WorkItem){
-  return {id:item.id,title:item.title,status:item.status,column:item.column,assignee:item.assignee,progress:item.progress,subItemOf:item.subItemOf,blockedBy:item.blockedBy,children:item.children,blocking:item.blocking,outputs:item.outputs,documents:item.documents,conversation:item.conversation,path:item.path,hash:item.hash}
+  return {id:item.id,title:item.title,status:item.status,column:item.column,assignee:item.assignee,initiator:item.initiator,proposedAssignee:item.proposedAssignee,progress:item.progress,subItemOf:item.subItemOf,blockedBy:item.blockedBy,children:item.children,blocking:item.blocking,outputs:item.outputs,documents:item.documents,conversation:item.conversation,path:item.path,hash:item.hash}
 }
 function detail(item:WorkItem){
   return {...summary(item),changedFiles:item.changedFiles,unverified:item.unverified,review:item.review,body:item.body}
@@ -181,7 +212,10 @@ async function startWork(args:Record<string,any>){
   if(kind!=='employee'&&kind!=='worker')throw Error('Choose a teammate or an available external worker')
   const person={kind,id:to,title:kind==='employee'?employee!.title:worker!.name}
   const update=executionUpdate(opened.item,person)
-  const saved=saveCockpitCard(opened.root,{id:opened.item.id,assignee:update.assignee,conversation:update.conversation,...((WORK_COLUMNS as readonly string[]).includes(update.status)&&update.status!==opened.item.status?{status:update.status as WorkColumn}:{})},opened.item.hash)
+  const rows=readDispatches()
+  for(const row of rows)if(row.status==='pending'&&row.itemId===opened.item.id){row.status='confirmed';row.decidedAt=Date.now()}
+  writeDispatches(rows)
+  const saved=saveCockpitCard(opened.root,{id:opened.item.id,assignee:update.assignee,proposedAssignee:'',conversation:update.conversation,...((WORK_COLUMNS as readonly string[]).includes(update.status)&&update.status!==opened.item.status?{status:update.status as WorkColumn}:{})},opened.item.hash)
   project(opened.team,opened.root)
   const {handleRequest}=await import('./server')
   const text=kind==='worker'?update.externalText:update.employeeText
@@ -202,15 +236,18 @@ function requestDispatch(args:Record<string,any>){
   const kind=args.kind??(botGroup(args.to)?'worker':'employee')
   if(kind!=='employee'&&kind!=='worker')throw Error('Dispatch target is an employee or an external worker')
   const to=String(args.to)
+  const worker=kind==='worker'?botGroup(to):undefined
   if(kind==='employee'){
     if(to===from.id)throw Error('Choose another employee')
     authorize('session.send',{id:to},to)
   }else{
-    const bot=botGroup(to)
-    if(!bot)throw Error('Unknown external worker')
-    if(bot.bot?.kind!=='private')throw Error('Use the external worker private conversation')
-    if(!isAppAdministrator()&&!bot.memberIds.includes(from.id))throw Error('External Worker access required')
+    if(!worker)throw Error('Unknown external worker')
+    if(worker.bot?.kind!=='private')throw Error('Use the external worker private conversation')
+    if(!isAppAdministrator()&&!worker.memberIds.includes(from.id))throw Error('External Worker access required')
   }
+  const targetTitle=kind==='employee'?readStore().sessions.find(card=>card.id===to)?.title??to:worker?.name??to
+  saveCockpitCard(resolved.root,{id:item.id,initiator:from.title,proposedAssignee:targetTitle,...(workColumn(item.status)==='待分派'?{status:'待分派' as WorkColumn}:{})},item.hash)
+  project(resolved.team,resolved.root)
   const payload={path:item.path,changedFiles:item.changedFiles,unverified:item.unverified,review:item.review}
   const dispatch:WorkDispatch={
     id:'wd_'+randomUUID(),team:resolved.team,itemId:item.id,fromEmployeeId:from.id,
@@ -234,6 +271,12 @@ async function confirmDispatch(id:string){
     const result=await withCaller(context,()=>handleRequest({cmd:dispatch.to.kind==='worker'?'direct.send':'session.send',args:dispatch.to.kind==='worker'
       ?{employee:dispatch.to.id,text:dispatch.externalText,clientMessageId:'work-'+dispatch.id}
       :{employee:dispatch.to.id,text:dispatch.assignment,clientMessageId:'work-'+dispatch.id,sourceView:'messages'}}))
+    try{
+      const root=readStore().teamRoots?.[dispatch.team]
+      const item=root?readCockpit(root).find(card=>card.id===dispatch.itemId):undefined
+      const title=dispatch.to.kind==='employee'?readStore().sessions.find(card=>card.id===dispatch.to.id)?.title:botGroup(dispatch.to.id)?.name
+      if(root&&item){saveCockpitCard(root,{id:item.id,assignee:title||item.proposedAssignee||item.assignee,proposedAssignee:'',status:'执行中',conversation:dispatch.to.kind==='employee'?'employee:'+dispatch.to.id:'group:'+dispatch.to.id},item.hash);project(dispatch.team,root)}
+    }catch{/* The assignment was already sent. */}
     dispatch.status='confirmed';dispatch.decidedAt=Date.now();delete dispatch.error
     writeDispatches(rows);notify()
     return {pending:false,sent:true,dispatch,result}
